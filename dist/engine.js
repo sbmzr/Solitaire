@@ -15,12 +15,14 @@
     for(let col=0;col<7;col++) for(let row=0;row<=col;row++) tableau[col].push(deck.pop());
     tableau.forEach(p=>p[p.length-1].up=true);
     return {tableau,stock:deck,waste:[],foundations:[[],[],[],[]],draw,moves:0,mode,
-      ...(mode==='cheat'?{removed:[],cheats:{destroy:3,swap:3,joker:2}}:{})};
+      ...(mode==='cheat'?{pocket:[],cheats:{swap:3,joker:2}}:{})};
   }
-  function pile(g,p){return p.type==='tableau'?g.tableau[p.index]:p.type==='foundation'?g.foundations[p.index]:p.type==='waste'?g.waste:[];}
+  function pile(g,p){return p.type==='tableau'?g.tableau[p.index]:p.type==='foundation'?g.foundations[p.index]:p.type==='waste'?g.waste:p.type==='pocket'&&cheatMode(g)?g.pocket:[];}
   function movable(g,from){
+    if(!from||!['tableau','foundation','waste','pocket'].includes(from.type)||!Number.isInteger(from.index)||from.index<0||from.index>=(from.type==='tableau'?7:from.type==='foundation'?4:1))return [];
     const p=pile(g,from),i=from.card;
     if(!Number.isInteger(i)||i<0||i>=p.length||!p[i].up) return [];
+    if(from.type==='pocket')return [p[i]];
     if(from.type!=='tableau'&&i!==p.length-1) return [];
     const cards=p.slice(i);
     if(cards.some((c,j)=>!c.up||(j>0&&!linked(cards[j-1],c)))) return [];
@@ -36,7 +38,7 @@
   }
   function move(g,from,to){
     if(!canMove(g,from,to))return false;
-    const src=pile(g,from);pile(g,to).push(...src.splice(from.card));
+    const src=pile(g,from);pile(g,to).push(...src.splice(from.card,from.type==='pocket'?1:src.length-from.card));
     if(from.type==='tableau'&&src.length)src[src.length-1].up=true;
     g.moves++;return true;
   }
@@ -48,6 +50,7 @@
   }
   function options(g){
     const out=[],sources=[];
+    if(cheatMode(g))g.pocket.forEach((c,card)=>sources.push({type:'pocket',index:0,card}));
     g.tableau.forEach((p,index)=>p.forEach((c,card)=>{if(c.up)sources.push({type:'tableau',index,card});}));
     if(g.waste.length)sources.unshift({type:'waste',index:0,card:g.waste.length-1});
     g.foundations.forEach((p,index)=>{if(p.length)sources.push({type:'foundation',index,card:p.length-1});});
@@ -57,11 +60,9 @@
     return out;
   }
   function nextRank(g,index){
-    const p=g.foundations[index];let rank=p.length?p[p.length-1].rank+1:1;
-    while((g.removed||[]).some(c=>c.suit===suits[index]&&c.rank===rank))rank++;
-    return rank;
+    const p=g.foundations[index];return p.length?p[p.length-1].rank+1:1;
   }
-  function completed(g){return g.foundations.flat().length+(g.removed||[]).filter(c=>!isJoker(c)).length;}
+  function completed(g){return g.foundations.flat().length;}
   const win=g=>completed(g)===52;
   function cheatTarget(g,from){
     if(!from||!['tableau','waste'].includes(from.type)||!Number.isInteger(from.index)||from.index<0||from.index>=(from.type==='tableau'?7:1))return false;
@@ -69,41 +70,56 @@
     return Number.isInteger(from.card)&&from.card>=0&&from.card<p.length&&p[from.card].up&&(from.type==='tableau'||from.card===p.length-1);
   }
   function cheat(g,action,from,to){
-    if(!cheatMode(g)||!g.cheats||!(g.cheats[action]>0)||!['destroy','swap','joker'].includes(action))return false;
+    if(!cheatMode(g)||!g.cheats||!['pocket','swap','joker'].includes(action))return false;
+    if(action==='pocket'?g.pocket.length>=3:!(g.cheats[action]>0))return false;
     if(action==='joker'){
       if(!to||to.type!=='tableau'||!Number.isInteger(to.index)||to.index<0||to.index>=7)return false;
       g.tableau[to.index].push({suit:'J',rank:3-g.cheats.joker,up:true});
     }else{
       if(!cheatTarget(g,from))return false;
       const a=pile(g,from);
-      if(action==='destroy'){
-        g.removed.push(a.splice(from.card,1)[0]);
+      if(action==='pocket'){
+        g.pocket.push(a.splice(from.card,1)[0]);
         if(from.type==='tableau'&&a.length)a[a.length-1].up=true;
       }else{
         if(!cheatTarget(g,to)||(from.type===to.type&&from.index===to.index&&from.card===to.card))return false;
         const b=pile(g,to);[a[from.card],b[to.card]]=[b[to.card],a[from.card]];
       }
     }
-    g.cheats[action]--;g.moves++;return true;
+    if(action!=='pocket')g.cheats[action]--;g.moves++;return true;
   }
-  function valid(g){
+  // The legacy validator is used only to migrate old destruction-mode saves.
+  function validate(g,legacy=false){
     if(!g||![undefined,'normal','cheat'].includes(g.mode)||![1,3].includes(g.draw)||!Number.isInteger(g.moves)||g.moves<0||!Array.isArray(g.tableau)||g.tableau.length!==7||!Array.isArray(g.foundations)||g.foundations.length!==4)return false;
     const cheating=cheatMode(g);
-    if(cheating&&(!Array.isArray(g.removed)||!g.cheats||Object.entries({destroy:3,swap:3,joker:2}).some(([k,max])=>!Number.isInteger(g.cheats[k])||g.cheats[k]<0||g.cheats[k]>max)))return false;
-    if(!cheating&&(g.removed!==undefined||g.cheats!==undefined))return false;
-    const piles=[g.stock,g.waste,...g.tableau,...g.foundations,...(cheating?[g.removed]:[])];if(piles.some(p=>!Array.isArray(p)))return false;
+    const held=legacy?g.removed:g.pocket;
+    if(cheating&&(!Array.isArray(held)||!g.cheats||Object.entries(legacy?{destroy:3,swap:3,joker:2}:{swap:3,joker:2}).some(([k,max])=>!Number.isInteger(g.cheats[k])||g.cheats[k]<0||g.cheats[k]>max)))return false;
+    if(cheating&&(legacy?g.pocket!==undefined:g.removed!==undefined||g.cheats.destroy!==undefined))return false;
+    if(!cheating&&(g.removed!==undefined||g.pocket!==undefined||g.cheats!==undefined))return false;
+    const piles=[g.stock,g.waste,...g.tableau,...g.foundations,...(cheating?[held]:[])];if(piles.some(p=>!Array.isArray(p)))return false;
     const cards=piles.flat();
     if(cards.some(c=>!c||typeof c.up!=='boolean'||!Number.isInteger(c.rank)||!(suits.includes(c.suit)?c.rank>=1&&c.rank<=13:cheating&&isJoker(c)&&c.rank>=1&&c.rank<=2)))return false;
     const normals=cards.filter(c=>!isJoker(c)),jokers=cards.filter(isJoker);
     if(normals.length!==52||new Set(cards.map(id)).size!==cards.length)return false;
-    if(cheating&&(g.removed.length!==3-g.cheats.destroy||g.removed.some(c=>!c.up)||jokers.length!==2-g.cheats.joker||jokers.some(c=>c.rank>2-g.cheats.joker)))return false;
+    if(cheating&&((legacy?held.length!==3-g.cheats.destroy:held.length>3)||held.some(c=>!c.up)||jokers.length!==2-g.cheats.joker||jokers.some(c=>c.rank>2-g.cheats.joker)))return false;
     if(g.stock.some(c=>c.up)||g.waste.some(c=>!c.up))return false;
     if(g.foundations.some((p,i)=>{
-      const ranks=Array.from({length:13},(_,j)=>j+1).filter(rank=>!(g.removed||[]).some(c=>c.suit===suits[i]&&c.rank===rank));
+      const ranks=Array.from({length:13},(_,j)=>j+1).filter(rank=>!(legacy?g.removed||[]:[]).some(c=>c.suit===suits[i]&&c.rank===rank));
       return p.some((c,j)=>!c.up||c.suit!==suits[i]||c.rank!==ranks[j]);
     }))return false;
     return g.tableau.every(p=>{const first=p.findIndex(c=>c.up);return p.length===0||(first>=0&&p.slice(first).every((c,j,a)=>c.up&&(cheating||j===0||linked(a[j-1],c))));});
   }
-  const api={suits,red,rankName,id,isJoker,cheatMode,linked,create,pile,movable,canMove,move,draw,options,win,valid,nextRank,completed,cheatTarget,cheat};
+  const valid=g=>validate(g);
+  function restore(saved){
+    if(valid(saved))return JSON.parse(JSON.stringify(saved));
+    if(!saved||!cheatMode(saved)||!validate(saved,true))return null;
+    const g=JSON.parse(JSON.stringify(saved));
+    g.pocket=g.removed;delete g.removed;delete g.cheats.destroy;
+    // Old foundations could skip destroyed ranks. Preserve the legal prefix and
+    // return the later cards to stock, retaining all 52 cards and all jokers.
+    g.foundations.forEach(p=>{const gap=p.findIndex((c,i)=>c.rank!==i+1);if(gap>=0)g.stock.push(...p.splice(gap).map(c=>({...c,up:false})));});
+    return valid(g)?g:null;
+  }
+  const api={suits,red,rankName,id,isJoker,cheatMode,linked,create,pile,movable,canMove,move,draw,options,win,valid,restore,nextRank,completed,cheatTarget,cheat};
   if(typeof module!=='undefined')module.exports=api;else root.Klondike=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
