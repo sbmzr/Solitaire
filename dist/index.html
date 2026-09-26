@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#102b2c"><meta name="description" content="パソコンとスマートフォンで遊べるクロンダイク。好きな画像にカードを着せ替えて、ひとりの時間を楽しもう。">
+<title>ソリティア・アトリエ</title><link rel="icon" type="image/svg+xml" href="assets/favicon.svg"><link rel="stylesheet" href="style.css">
+<script defer src="engine.js"></script><script defer src="app.js"></script>
+</head>
+<body>
+<div class="app">
+<header class="header"><div class="brand"><span class="brand-mark" aria-hidden="true">♠</span><div><h1>SOLITAIRE</h1><p>ソリティア・アトリエ</p></div></div><button id="appearance" class="quiet">▧ <span>カードの画像</span></button></header>
+<main>
+<section class="game-meta" aria-label="ゲーム情報"><div class="mode"><span class="eyebrow">KLONDIKE</span><span id="mode-label">1枚めくり</span></div><div class="stats"><div><span>時間</span><strong id="time">00:00</strong></div><div><span>手数</span><strong id="moves">0</strong></div><div><span>組札</span><strong><span id="complete">0</span><small> / 52</small></strong></div></div></section>
+<section id="board" class="board" aria-label="クロンダイクのゲーム盤"></section>
+<div id="status" class="status" role="status" aria-live="polite">山札をめくるか、カードを選んで移動先をタップ。</div>
+<nav class="toolbar" aria-label="ゲーム操作"><button id="undo">↶ <span>戻す</span></button><button id="hint">◇ <span>ヒント</span></button><button id="rules">? <span>遊び方</span></button><button id="new" class="primary">新しいゲーム</button></nav>
+<p class="footnote">カードを選んで、移動先をタップ。ドラッグでも移動できます。</p>
+</main>
+<footer><span>52 CARDS. A MOMENT FOR YOURSELF.</span><span>♠ <i>♥</i> ♣ <i>♦</i></span></footer>
+</div>
+<dialog id="settings-dialog"><div class="dialog-head"><div><span class="eyebrow">YOUR OWN DECK</span><h2>カードの画像</h2></div><button class="close" aria-label="閉じる">×</button></div>
+<p>好きな画像で、自分だけのデッキに。変更はこの端末・ブラウザに保存されます。</p>
+<div class="design-row"><img id="back-preview" class="preview" alt="現在の裏面"><div><h3>裏面を変更</h3><p>すべてのカードに共通の画像です。</p><label class="file-button">画像を選ぶ<input id="back-file" type="file" accept="image/png,image/jpeg,image/webp"></label></div></div>
+<div class="design-row"><img id="face-preview" class="preview" alt="選択したカードの表面"><div><h3>表面を変更</h3><label class="select-label">カード<select id="face-select"></select></label><label class="file-button">画像を選ぶ<input id="face-file" type="file" accept="image/png,image/jpeg,image/webp"></label></div></div>
+<details><summary>表面をまとめて変更する</summary><p>ファイル名で対応するカードを判定します。例：<code>S_A.png</code>、<code>H_02.png</code>、<code>D_K.png</code>。S＝スペード、H＝ハート、C＝クラブ、D＝ダイヤ。2〜10は2桁、A・J・Q・Kは英字です。</p><label class="file-button">複数の画像を選ぶ<input id="faces-files" type="file" multiple accept="image/png,image/jpeg,image/webp"></label></details>
+<p class="small">PNG・JPEG・WebP、1枚5MBまで。推奨比率は5:7。画像全体を表示し、表面には識別用の数字・マークを重ねます。</p><p id="image-status" class="small" role="status"></p><button id="reset-art" class="text-button">初期デザインに戻す</button></dialog>
+<dialog id="new-dialog"><div class="dialog-head"><h2>新しいゲーム</h2><button class="close" aria-label="閉じる">×</button></div><p>現在のゲームを終了して、カードを配り直します。</p><fieldset><legend>山札のめくり方</legend><label class="choice"><input type="radio" name="draw" value="1" checked><span><strong>1枚めくり</strong><small>気軽に楽しむ、定番ルール</small></span></label><label class="choice"><input type="radio" name="draw" value="3"><span><strong>3枚めくり</strong><small>少し手ごたえのあるルール</small></span></label></fieldset><button id="start" class="primary wide">カードを配る</button></dialog>
+<dialog id="rules-dialog"><div class="dialog-head"><h2>遊び方</h2><button class="close" aria-label="閉じる">×</button></div><p>右上の4つの組札に、同じマークのカードを<strong>A → 2 → … → K</strong>の順に集めるとクリアです。</p><ol><li>下の場札は、赤・黒を交互に、数字が1つ小さくなるよう重ねます。</li><li>表向きのカードは、並びを保ったまままとめて動かせます。空いた列に置けるのはKから始まるカードだけです。</li><li>左上の山札をタップしてカードをめくります。山札がなくなったら、同じ場所をタップして何度でも巡回できます。</li><li>めくり札は一番上だけ使えます。組札のカードも場札へ戻せます。</li></ol><p><strong>操作：</strong>カード → 移動先の順にタップ、またはドラッグ。選択したカードをもう一度タップすると、置ける場合は組札へ送ります。</p><p class="small">キーボードはTabで選択、Enter／Spaceで操作、Escで選択解除。Ctrl／⌘＋Zで1手戻せます。すべての配り方がクリアできるとは限りません。</p></dialog>
+<dialog id="win-dialog"><div class="celebration" aria-hidden="true">♠ ♥ ♣ ♦</div><h2>おめでとうございます！</h2><p>52枚のカードが、きれいに揃いました。</p><p id="win-stats"></p><button id="play-again" class="primary wide">もう一度遊ぶ</button><button class="close text-button">盤面を見る</button></dialog>
+<script>/* This page also works from a local index.html, without a build step. */</script>
+</body></html>
