@@ -1,6 +1,9 @@
 'use strict';
 const K=Klondike,$=s=>document.querySelector(s),symbols={S:'♠',H:'♥',C:'♣',D:'♦'},suitNames={S:'スペード',H:'ハート',C:'クラブ',D:'ダイヤ'};
-const board=$('#board'),stateKey='atelier-klondike-v1';
+const board=$('#board'),boardViewport=$('#board-viewport'),stateKey='atelier-klondike-v1';
+const settingsKey=stateKey+'-settings';
+let cardSize=100;
+try{const saved=JSON.parse(localStorage.getItem(settingsKey));if(saved&&Number.isInteger(saved.cardSize)&&saved.cardSize>=80&&saved.cardSize<=160&&saved.cardSize%10===0)cardSize=saved.cardSize;}catch{}
 let game=K.create(),history=[],seconds=0,started=false,selected=null,hinted=null,wonShown=false,art={},db=null,pointer=null,ghost=null,skipClickUntil=0,lastTimer=Date.now(),savingNotice=false,cheatAction=null,cheatFirst=null;
 const clone=x=>JSON.parse(JSON.stringify(x));
 const sessions={};
@@ -83,6 +86,11 @@ function cardElement(c,from,hidden=false){
 function slot(type,index,title){const el=document.createElement('div');el.className='slot';el.dataset.dest=type;el.dataset.index=index;const empty=button(title,'empty-slot',type==='foundation'?suitNames[K.suits[index]]+'の組札':'場札 '+(index+1)+'列目');empty.addEventListener('click',()=>destination(type,index));if(hinted&&hinted.to.type===type&&hinted.to.index===index)empty.classList.add('hinted');el.append(empty);return el;}
 function addLabel(el,text){const s=document.createElement('span');s.className='pile-label';s.textContent=text;el.append(s);}
 function render(){
+ const gap=parseFloat(getComputedStyle(boardViewport).columnGap)||6;
+ const available=boardViewport.clientWidth-12;
+ const width=Math.max(28,(available-gap*6)/7*cardSize/100);
+ board.style.width=(width*7+gap*6)+'px';
+ $('#board-scroll-hint').hidden=width*7+gap*6<=available+1;
  const focused=document.activeElement;const focusKey=board.contains(focused)?{type:focused.dataset.type,index:focused.dataset.index,card:focused.dataset.card}:null;
  board.replaceChildren();const top=document.createElement('div');top.className='top-row';
  const stock=document.createElement('div');stock.className='slot';const stockButton=button('',game.stock.length?'card back':'empty-slot stock-empty',game.stock.length?'山札を'+game.draw+'枚めくる':'めくり札を山札へ戻す');stockButton.dataset.stock='true';
@@ -92,7 +100,7 @@ function render(){
  const show=game.draw===3?Math.min(3,game.waste.length):Math.min(1,game.waste.length);
  for(let i=game.waste.length-show;i<game.waste.length;i++){const c=cardElement(game.waste[i],{type:'waste',index:0,card:i});const offset=i-(game.waste.length-show);c.style.transform='translateX('+offset*10+'%)';if(i!==game.waste.length-1){c.style.pointerEvents='none';c.tabIndex=-1;c.setAttribute('aria-hidden','true');}waste.append(c);}addLabel(waste,'めくり札');top.append(waste);top.append(document.createElement('div'));
  for(let i=0;i<4;i++){const el=slot('foundation',i,symbols[K.suits[i]]),p=game.foundations[i];if(p.length)el.append(cardElement(p[p.length-1],{type:'foundation',index:i,card:p.length-1}));top.append(el);}board.append(top);
- const row=document.createElement('div');row.className='tableau-row';const width=Math.max(34,(board.clientWidth-(innerWidth<=650?6:Math.min(20,innerWidth*.0165))*6)/7),height=width*1.4,upStep=Math.max(23,Math.min(34,width*.31)),downStep=Math.max(11,Math.min(17,width*.16));
+ const row=document.createElement('div');row.className='tableau-row';const height=width*1.4,upStep=Math.max(23,Math.min(34,width*.31)),downStep=Math.max(11,Math.min(17,width*.16));
  game.tableau.forEach((p,index)=>{const el=slot('tableau',index,'');el.classList.add('pile');el.style.aspectRatio='auto';let y=0;p.forEach((c,card)=>{const b=cardElement(c,{type:'tableau',index,card},!c.up);b.style.top=y+'px';el.append(b);if(card<p.length-1)y+=c.up?upStep:downStep;});el.style.height=y+height+'px';el.firstChild.style.height=height+'px';el.firstChild.style.bottom='auto';row.append(el);});board.append(row);
  $('#moves').textContent=game.moves;$('#complete').textContent=K.completed(game);$('#complete-label').textContent=K.cheatMode(game)?'達成':'組札';$('#time').textContent=formatTime(seconds);$('#undo').disabled=!history.length;$('#mode-label').textContent=game.draw+'枚めくり';
  const cheating=K.cheatMode(game);document.body.classList.toggle('cheat-mode',cheating);
@@ -134,7 +142,7 @@ board.addEventListener('lostpointercapture',()=>{if(pointer)clearDrag();});
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>switchMode(b.dataset.mode));
 document.querySelectorAll('[data-cheat]').forEach(b=>b.onclick=()=>armCheat(b.dataset.cheat));
 $('#cheat-cancel').onclick=()=>{cheatAction=null;cheatFirst=null;render();say('特殊機能を解除しました。');};
-$('#undo').onclick=undo;$('#hint').onclick=hint;$('#rules').onclick=()=>$('#rules-dialog').showModal();
+$('#undo').onclick=undo;$('#hint').onclick=hint;
 $('#new').onclick=()=>{$('#new-mode-name').textContent=modeName(game.mode||'normal');document.querySelector('input[name="draw"][value="'+game.draw+'"]').checked=true;$('#new-dialog').showModal();};
 $('#start').onclick=()=>{game=K.create(Number($('input[name="draw"]:checked').value),Math.random,game.mode||'normal');history=[];seconds=0;started=false;wonShown=false;$('#new-dialog').close();finishAction('カードを配りました。山札か場札をタップして始めましょう。');};
 $('#play-again').onclick=()=>{$('#win-dialog').close();$('#new').click();};
@@ -147,9 +155,26 @@ document.addEventListener('visibilitychange',()=>{lastTimer=Date.now();if(docume
 // Image imports stay in the browser; IndexedDB is used for larger card collections.
 function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('solitaire-atelier-art',1);r.onupgradeneeded=()=>r.result.createObjectStore('images');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
 function transaction(mode,fn){return new Promise((resolve,reject)=>{if(!db)return reject(new Error('画像を保存できません。ブラウザの保存設定をご確認ください。'));const t=db.transaction('images',mode);fn(t.objectStore('images'));t.oncomplete=resolve;t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error);});}
-function preview(){const id=$('#face-select').value;$('#back-preview').src=backSrc();$('#face-preview').src=art[id]||'assets/cards/'+id+'.svg';}
+function preview(){const id=$('#face-select').value;$('#back-preview').src=backSrc();$('#face-preview').src=art[id]||'assets/cards/'+id+'.svg';$('#size-preview').src=art.S_A||'assets/cards/S_A.svg';}
 K.suits.forEach(suit=>{for(let rank=1;rank<=13;rank++){const c={suit,rank},o=document.createElement('option');o.value=K.id(c);o.textContent=label(c);$('#face-select').append(o);}});
-$('#face-select').onchange=preview;$('#appearance').onclick=()=>{preview();$('#settings-dialog').showModal();};
+function syncSizeControl(){
+ $('#card-size').value=cardSize;$('#card-size-value').textContent=cardSize+'%';
+ $('#card-size').setAttribute('aria-valuetext',cardSize+'パーセント');
+ $('#size-preview').style.width=60*cardSize/100+'px';
+ $('#reset-size').disabled=cardSize===100;
+}
+function changeCardSize(value){
+ const size=Number(value);if(!Number.isInteger(size)||size<80||size>160||size%10!==0)return;
+ cardSize=size;clearDrag();syncSizeControl();render();
+ try{localStorage.setItem(settingsKey,JSON.stringify({cardSize}));$('#settings-status').textContent='';}
+ catch{$('#settings-status').textContent='サイズは変更しましたが、保存できません。ページを閉じると元に戻ります。';}
+}
+$('#card-size').oninput=e=>changeCardSize(e.target.value);
+$('#reset-size').onclick=()=>changeCardSize(100);
+$('#face-select').onchange=preview;
+$('#settings').onclick=()=>{clearDrag();preview();syncSizeControl();$('#settings-dialog').showModal();};
+$('#settings-done').onclick=()=>$('#settings-dialog').close();
+syncSizeControl();
 function normalize(file){return new Promise((resolve,reject)=>{
  if(!['image/png','image/jpeg','image/webp'].includes(file.type))return reject(new Error('PNG・JPEG・WebP形式の画像を選んでください。'));
  if(file.size>5*1024*1024)return reject(new Error('画像は1枚5MBまでです。'));
@@ -158,12 +183,12 @@ function normalize(file){return new Promise((resolve,reject)=>{
 function changeObjectURL(id,blob){if(art[id])URL.revokeObjectURL(art[id]);art[id]=URL.createObjectURL(blob);}
 let importing=false;
 async function importFiles(files,single){
- if(importing)return;importing=true;document.querySelectorAll('#settings-dialog input,#reset-art').forEach(e=>e.disabled=true);$('#image-status').textContent='画像を読み込んでいます…';
+ if(importing)return;importing=true;document.querySelectorAll('#art-settings input,#reset-art').forEach(e=>e.disabled=true);$('#image-status').textContent='画像を読み込んでいます…';
  try{const entries=[],skipped=[];for(const file of files){let id=single;if(!id){const match=file.name.match(/^([SHCD])_(A|0[2-9]|10|J|Q|K)\.(png|jpe?g|webp)$/i);if(!match){skipped.push(file.name);continue;}id=match[1].toUpperCase()+'_'+match[2].toUpperCase();}entries.push([id,await normalize(file)]);}
  if(!entries.length)throw new Error('対応するファイル名がありません。例：S_A.png、H_02.png');
  await transaction('readwrite',store=>entries.forEach(([id,blob])=>store.put(blob,id)));entries.forEach(([id,blob])=>changeObjectURL(id,blob));preview();render();$('#image-status').textContent=entries.length+'枚の画像を保存しました。'+(skipped.length?' ファイル名が合わない'+skipped.length+'枚は変更していません。':'');
  }catch(e){$('#image-status').textContent=e.message||'画像を保存できませんでした。端末の空き容量をご確認ください。';}
- finally{importing=false;document.querySelectorAll('#settings-dialog input,#reset-art').forEach(e=>e.disabled=false);}}
+ finally{importing=false;document.querySelectorAll('#art-settings input,#reset-art').forEach(e=>e.disabled=false);}}
 $('#back-file').onchange=async e=>{if(e.target.files.length)await importFiles([...e.target.files],'back');e.target.value='';};
 $('#face-file').onchange=async e=>{if(e.target.files.length)await importFiles([...e.target.files],$('#face-select').value);e.target.value='';};
 $('#faces-files').onchange=async e=>{if(e.target.files.length)await importFiles([...e.target.files]);e.target.value='';};
