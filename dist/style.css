@@ -28,3 +28,12 @@ body.cheat-mode{background:radial-gradient(ellipse at 50% 40%,#463652 0%,#282b40
 .settings-section>summary{font-size:16px;font-weight:550;color:var(--ink);padding:6px 0}
 #settings-status:empty{display:none}
 @media(max-width:360px){.size-preview-row{gap:10px}.size-preview-frame{flex-basis:98px}}
+
+.card>svg{display:block;width:100%;height:100%;pointer-events:none}
+.card .custom-art{position:absolute;inset:0;visibility:hidden}
+.card .custom-art.ready{visibility:visible;background:#faf9f4}
+.fallback-index.red{color:#b63445}
+.pocket-area{border:1px solid #caaaef50;border-radius:9px;padding:10px 0;margin-bottom:20px;background:#b98ddd0c}
+.pocket-area h3{font-size:13px;font-weight:500;color:#e8d4f6;margin:0 10px 10px}
+.pocket-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:var(--gap);align-items:start}
+.pocket-row .empty-slot{font-family:inherit;font-size:12px}

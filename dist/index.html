@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#102b2c"><meta name="description" content="パソコンとスマートフォンで遊べるクロンダイク。好きな画像にカードを着せ替えて、ひとりの時間を楽しもう。">
 <title>ソリティア・アトリエ</title><link rel="icon" type="image/svg+xml" href="assets/favicon.svg"><link rel="stylesheet" href="style.css">
-<script defer src="engine.js"></script><script defer src="app.js"></script>
+<script defer src="card-faces.js"></script><script defer src="engine.js"></script><script defer src="app.js"></script>
 </head>
 <body>
 <div class="app">
@@ -14,7 +14,7 @@
 <section class="game-meta" aria-label="ゲーム情報"><div class="mode"><span class="eyebrow">KLONDIKE</span><span id="mode-label">1枚めくり</span></div><div class="stats"><div><span>時間</span><strong id="time">00:00</strong></div><div><span>手数</span><strong id="moves">0</strong></div><div><span id="complete-label">組札</span><strong><span id="complete">0</span><small> / 52</small></strong></div></div></section>
 <section id="cheat-panel" class="cheat-panel" aria-label="イカサマの特殊機能" hidden>
 <div class="cheat-heading"><span class="eyebrow">BREAK THE RULES</span><button id="cheat-cancel" class="cheat-cancel" hidden>選択を解除</button></div>
-<div class="cheat-buttons"><button data-cheat="destroy" aria-pressed="false">✕ カードを破壊 <span>残り <strong>3</strong> 回</span></button><button data-cheat="swap" aria-pressed="false">⇄ カードを入れ替え <span>残り <strong>3</strong> 回</span></button><button data-cheat="joker" aria-pressed="false">✦ ジョーカーを追加 <span>残り <strong>2</strong> 枚</span></button></div>
+<div class="cheat-buttons"><button data-cheat="pocket" aria-pressed="false">▣ ポケットに入れる <span>空き <strong>3</strong> 枚</span></button><button data-cheat="swap" aria-pressed="false">⇄ カードを入れ替え <span>残り <strong>3</strong> 回</span></button><button data-cheat="joker" aria-pressed="false">✦ ジョーカーを追加 <span>残り <strong>2</strong> 枚</span></button></div>
 <p id="cheat-guidance" class="cheat-guidance"></p><p id="cheat-info"></p><p>ボタン → 対象の順にタップ。ジョーカーは列を選択。特殊機能も「戻す」で取り消せます。</p>
 </section>
 <div id="board-viewport" class="board-viewport" tabindex="0" role="region" aria-label="ゲーム盤の表示領域" aria-describedby="board-scroll-hint"><section id="board" class="board" aria-label="クロンダイクのゲーム盤"></section></div>
@@ -31,7 +31,7 @@
 <div class="size-heading"><h3 id="size-title"><label for="card-size">カードサイズ</label></h3><output id="card-size-value" for="card-size">100%</output></div>
 <input id="card-size" type="range" min="80" max="160" step="10" value="100" aria-describedby="card-size-help">
 <div class="size-scale" aria-hidden="true"><span>小さい 80%</span><span>大きい 160%</span></div>
-<div class="size-preview-row"><div class="size-preview-frame"><img id="size-preview" src="assets/cards/S_A.svg" alt="カードサイズの見本"></div><div><p id="card-size-help" class="small">変更はすぐ盤面に反映されます。画面に収まらない場合は、盤面を左右にスクロールできます。</p><button id="reset-size" class="text-button" type="button">標準サイズに戻す</button></div></div>
+<div class="size-preview-row"><div class="size-preview-frame"><img id="size-preview" alt="カードサイズの見本"></div><div><p id="card-size-help" class="small">変更はすぐ盤面に反映されます。画面に収まらない場合は、盤面を左右にスクロールできます。</p><button id="reset-size" class="text-button" type="button">標準サイズに戻す</button></div></div>
 <p id="settings-status" class="small" role="status"></p>
 </section>
 <details class="settings-section" id="art-settings"><summary>カードの画像</summary>
@@ -40,7 +40,7 @@
 <div class="design-row"><img id="face-preview" class="preview" alt="選択したカードの表面"><div><h3>表面を変更</h3><label class="select-label">カード<select id="face-select"></select></label><label class="file-button">画像を選ぶ<input id="face-file" type="file" accept="image/png,image/jpeg,image/webp"></label></div></div>
 <details><summary>表面をまとめて変更する</summary><p>ファイル名で対応するカードを判定します。例：<code>S_A.png</code>、<code>H_02.png</code>、<code>D_K.png</code>。S＝スペード、H＝ハート、C＝クラブ、D＝ダイヤ。2〜10は2桁、A・J・Q・Kは英字です。</p><label class="file-button">複数の画像を選ぶ<input id="faces-files" type="file" multiple accept="image/png,image/jpeg,image/webp"></label></details>
 <p class="small">PNG・JPEG・WebP、1枚5MBまで。推奨比率は5:7。画像全体を表示し、表面には識別用の数字・マークを重ねます。</p><p id="image-status" class="small" role="status"></p><button id="reset-art" class="text-button">初期デザインに戻す</button></details>
-<details class="settings-section" id="help-settings"><summary>遊び方・操作方法</summary><p>右上の4つの組札に、同じマークのカードを<strong>A → 2 → … → K</strong>の順に集めるとクリアです。</p><ol><li>下の場札は、赤・黒を交互に、数字が1つ小さくなるよう重ねます。</li><li>表向きのカードは、並びを保ったまままとめて動かせます。空いた列に置けるのはKから始まるカードだけです。</li><li>左上の山札をタップしてカードをめくります。山札がなくなったら、同じ場所をタップして何度でも巡回できます。</li><li>めくり札は一番上だけ使えます。組札のカードも場札へ戻せます。</li></ol><p><strong>操作：</strong>カード → 移動先の順にタップ、またはドラッグ。選択したカードをもう一度タップすると、置ける場合は組札へ送ります。</p><h3>イカサマモード</h3><p>画面上部のボタンで切り替えます。通常モードとは別々に進行を保存します。1ゲームにつき破壊3回・入れ替え3回・ジョーカー2枚が使えます。</p><ul><li><strong>破壊：</strong>場札の表向きカードか、めくり札の一番上を1枚取り除きます。破壊した通常カードは達成枚数に含み、組札はその数字を飛ばして積めます。</li><li><strong>入れ替え：</strong>同じ対象範囲の2枚の位置を交換します。組札は対象外です。並びが崩れた部分はまとめて動かせないため、末尾から整えてください。</li><li><strong>ジョーカー：</strong>選んだ場札の末尾へ追加します。空列やどのカードにも重ねられ、上にもどのカードでも置けます。組札には置けません。52枚の通常カードを組札へ送るか破壊すれば、ジョーカーが残っていてもクリアです。</li></ul><p>特殊機能も1手として数えます。「戻す」で回数とカードを復元できます。</p>
+<details class="settings-section" id="help-settings"><summary>遊び方・操作方法</summary><p>右上の4つの組札に、同じマークのカードを<strong>A → 2 → … → K</strong>の順に集めるとクリアです。</p><ol><li>下の場札は、赤・黒を交互に、数字が1つ小さくなるよう重ねます。</li><li>表向きのカードは、並びを保ったまままとめて動かせます。空いた列に置けるのはKから始まるカードだけです。</li><li>左上の山札をタップしてカードをめくります。山札がなくなったら、同じ場所をタップして何度でも巡回できます。</li><li>めくり札は一番上だけ使えます。組札のカードも場札へ戻せます。</li></ol><p><strong>操作：</strong>カード → 移動先の順にタップ、またはドラッグ。選択したカードをもう一度タップすると、置ける場合は組札へ送ります。</p><h3>イカサマモード</h3><p>画面上部のボタンで切り替えます。通常モードとは別々に進行を保存します。最大3枚のポケット・入れ替え3回・ジョーカー2枚が使えます。</p><ul><li><strong>ポケット：</strong>場札の表向きカードか、めくり札の一番上を、最大3枚まで保管できます。取り出すカードを選び、通常の配置ルールに従って場札・組札へ移動してください。空いた枠は何度でも使えます。保管中のカードは達成枚数に含みません。</li><li><strong>入れ替え：</strong>同じ対象範囲の2枚の位置を交換します。組札は対象外です。並びが崩れた部分はまとめて動かせないため、末尾から整えてください。</li><li><strong>ジョーカー：</strong>選んだ場札の末尾へ追加します。空列やどのカードにも重ねられ、上にもどのカードでも置けます。組札には置けません。52枚の通常カードを組札へ送れば、ジョーカーが場札やポケットに残っていてもクリアです。</li></ul><p>特殊機能とポケットへの出し入れも1手として数えます。「戻す」でカード・保管状態・残り回数を復元できます。</p>
 <p class="small">キーボードはTabで選択、Enter／Spaceで操作、Escで選択解除。Ctrl／⌘＋Zで1手戻せます。すべての配り方がクリアできるとは限りません。</p></details>
 <button id="settings-done" class="primary wide" type="button">ゲームに戻る</button></dialog>
 <dialog id="new-dialog"><div class="dialog-head"><h2>新しいゲーム</h2><button class="close" aria-label="閉じる">×</button></div><p><strong id="new-mode-name">通常モード</strong>のゲームを終了して、カードを配り直します。もう一方のモードの進行は残ります。</p><fieldset><legend>山札のめくり方</legend><label class="choice"><input type="radio" name="draw" value="1" checked><span><strong>1枚めくり</strong><small>気軽に楽しむ、定番ルール</small></span></label><label class="choice"><input type="radio" name="draw" value="3"><span><strong>3枚めくり</strong><small>少し手ごたえのあるルール</small></span></label></fieldset><button id="start" class="primary wide">カードを配る</button></dialog>
