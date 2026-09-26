@@ -6,6 +6,36 @@ PC・スマートフォン向けのブラウザ版クロンダイクです。
 
 `dist/index.html` をブラウザで開くか、`dist` の内容を静的Webサーバーに配置してください。外部サービス・ライブラリ・ビルドは不要です。ローカルファイルで開く場合、ブラウザによっては画像や進行の保存が制限されます。
 
+## Netlifyで公開する
+
+リポジトリ直下の `netlify.toml` に公開先フォルダを設定しています。ビルドやパッケージのインストールは不要です。
+
+### GitHubと連携する場合
+
+1. Netlifyで既存のGitリポジトリからプロジェクトを作成し、GitHubの `sbmzr/Solitaire` を選択します。
+2. 次の設定でデプロイします。公開フォルダは `netlify.toml` から読み込まれます。
+
+| 項目 | 設定 |
+| --- | --- |
+| Branch to deploy | `main` |
+| Base directory | 空欄（リポジトリ直下） |
+| Build command | 空欄（ビルド不要） |
+| Publish directory | `dist` |
+
+以後は `main` の更新に合わせて自動デプロイできます。
+
+### 手動でアップロードする場合
+
+1. GitHubの「Code → Download ZIP」でダウンロードし、ZIPを解凍します。
+2. 解凍先の **`dist` フォルダ**をNetlifyの手動デプロイ欄へドラッグ＆ドロップします。
+3. 発行されたURLを開いてプレイします。
+
+アップロードするフォルダの直下に `index.html`、`app.js`、`engine.js`、`style.css`、`assets/` があることを確認してください。リポジトリ全体のフォルダではなく、`dist` を指定します。手動デプロイの更新時も、最新の `dist` を再度アップロードしてください。
+
+ゲーム進行と変更したカード画像はURLごとにブラウザへ保存されます。以前の公開URLからNetlifyのURLへは自動で引き継がれません。
+
+参考：[Netlifyの設定ファイル](https://docs.netlify.com/build/configure-builds/file-based-configuration/) / [手動デプロイ](https://docs.netlify.com/deploy/create-deploys/)
+
 ## 操作・ルール
 
 - 1枚めくり／3枚めくり、山札は何度でも巡回可能。

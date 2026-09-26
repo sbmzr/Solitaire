@@ -1,0 +1,4 @@
+# The game is already built and has no dependencies to install.
+[build]
+  publish = "dist"
+  command = ""
